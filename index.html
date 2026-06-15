@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>SITTA - Portal Bahan Ajar UT</title>
+</head>
+<body>
+<div id="app">
+    <header v-if="loggedInUser">
+        <nav class="container">
+            <div class="logo">
+                <a href="index.html">SITTA <span>UT</span></a>
+            </div>
+            <ul class="menu">
+                <li class="menu-item active"><a href="index.html">Home</a></li>
+                <li class="menu-item"><a href="stok.html">Informasi Bahan Ajar</a></li>
+                <li class="menu-item"><a href="tracking.html">Tracking Pengiriman</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        <div class="page dashboard-page" v-if="loggedInUser">
+            <div class="welcome-banner">
+                <div class="welcome-text">
+                    <h1>{{ greeting }}, <span class="user-name">{{ loggedInUser.nama }}</span>!</h1>
+                    <p class="role-badge">{{ loggedInUser.role }} • {{ loggedInUser.lokasi }}</p>
+                </div>
+                <button class="btn btn-secondary-outline" @click="handleLogout">
+                    Keluar (Logout)
+                </button>
+            </div>
+
+            <div class="dashboard-simple-content">
+                <div class="info-card">
+                    <h3>SITTA UT - Sistem Informasi Logistik</h3>
+                    <p>Selamat datang di portal logistik bahan ajar Universitas Terbuka. Gunakan menu navigasi di atas untuk mengakses fitur:</p>
+                    <ul>
+                        <li><strong>Informasi Bahan Ajar:</strong> Untuk mengelola data ketersediaan stok, filter lokasi rak, reorder warning, dan menambah data bahan ajar baru.</li>
+                        <li><strong>Tracking Pengiriman:</strong> Untuk melacak status pengiriman DO bahan ajar dan membuat input delivery order baru.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="login-page" v-else>
+            <div class="login-card-container">
+                <div class="brand-logo">
+                    SITTA <span>UT</span>
+                </div>
+                <div class="login-form">
+                    <h1>Selamat Datang</h1>
+                    <p class="login-subtitle">Silakan masuk ke portal logistik bahan ajar Universitas Terbuka</p>
+                    
+                    <form @submit.prevent="handleLogin">
+                        <div class="input-group">
+                            <label for="email">Alamat Email</label>
+                            <input type="email" id="email" v-model="email" placeholder="email@ut.ac.id" required>
+                        </div>
+                        <div class="input-group">
+                            <div class="password-label-wrapper">
+                                <label for="password">Kata Sandi</label>
+                                <button class="forgot-password" type="button" @click="openResetModal" v-if="showForgotPasswordBtn">
+                                    Lupa Password?
+                                </button>
+                            </div>
+                            <input type="password" id="password" v-model="password" placeholder="••••••••" required>
+                        </div>
+
+                        <div class="login-error-msg" v-if="loginError">
+                            {{ loginError }}
+                        </div>
+
+                        <div class="actions">
+                            <button type="submit" class="btn btn-primary btn-full">Masuk</button>
+                            <button type="button" class="btn btn-text btn-full" @click="openRegisterModal">Belum Punya Akun? Daftar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" v-if="showResetModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>Reset Password</h2>
+                <button class="close-btn" @click="showResetModal = false">×</button>
+            </div>
+            <div class="modal-body">
+                <form @submit.prevent="handleResetPassword">
+                    <p class="modal-desc">Masukkan alamat email terdaftar Anda untuk mengirim instruksi reset kata sandi.</p>
+                    
+                    <div class="input-group" v-bind:class="{'has-error': resetEmailError}">
+                        <label for="resetEmail">Email Terdaftar</label>
+                        <input type="email" id="resetEmail" v-model="resetEmail" placeholder="email@ut.ac.id" required>
+                        <span class="error-msg" v-if="resetEmailError">Email tidak terdaftar dalam sistem.</span>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" @click="showResetModal = false">Batal</button>
+                        <button type="submit" class="btn btn-primary">Kirim Instruksi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="showRegisterModal">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h2>Registrasi Akun SITTA</h2>
+                <button class="close-btn" @click="showRegisterModal = false">×</button>
+            </div>
+            <div class="modal-body">
+                <form @submit.prevent="handleRegister" class="grid-form">
+                    <div class="input-group">
+                        <label for="reg-nama">Nama Lengkap</label>
+                        <input type="text" id="reg-nama" v-model="register.nama" placeholder="Ahmad Prasetyo" required>
+                    </div>
+
+                    <div class="input-group" v-bind:class="{'has-error': registerEmailError}">
+                        <label for="reg-email">Email UT</label>
+                        <input type="email" id="reg-email" v-model="register.email" placeholder="ahmad@ut.ac.id" required>
+                        <span class="error-msg" v-if="registerEmailError">Email sudah terdaftar. Gunakan email lain.</span>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="reg-password">Kata Sandi</label>
+                        <input type="password" id="reg-password" v-model="register.password" placeholder="••••••••" required>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="reg-role">Role Akses</label>
+                        <select id="reg-role" v-model="register.role">
+                            <option value="UPBJJ-UT">UPBJJ-UT</option>
+                            <option value="Puslaba">Puslaba</option>
+                            <option value="Fakultas">Fakultas</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group full-width">
+                        <label for="reg-lokasi">Lokasi Tugas (UPBJJ / Kantor Cabang)</label>
+                        <input type="text" id="reg-lokasi" v-model="register.lokasi" placeholder="UPBJJ Jakarta" required>
+                    </div>
+
+                    <div class="form-actions full-width">
+                        <button type="button" class="btn btn-secondary" @click="showRegisterModal = false">Batal</button>
+                        <button type="submit" class="btn btn-primary">Daftar Akun</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" v-if="alertActive" style="z-index: 10001;">
+        <div class="modal-box alert-box" style="max-width: 400px; text-align: center; padding: 32px;">
+            <div class="alert-icon-wrapper" v-bind:class="'alert-icon-' + alertType">
+                <span v-if="alertType === 'success'">✓</span>
+                <span v-else-if="alertType === 'error'">✗</span>
+                <span v-else-if="alertType === 'confirm'">?</span>
+                <span v-else>!</span>
+            </div>
+            <h3 style="margin-top: 16px; font-size: 18px; font-weight: 700; color: #0f172a;">{{ alertTitle }}</h3>
+            <p style="margin-top: 8px; font-size: 14px; color: #64748b; line-height: 1.5;">{{ alertMessage }}</p>
+            
+            <div class="alert-actions" style="margin-top: 24px; display: flex; justify-content: center; gap: 12px;">
+                <button class="btn btn-secondary" v-if="alertType === 'confirm'" @click="closeAlert(false)">Batal</button>
+                <button class="btn btn-primary" @click="closeAlert(true)">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+<script src="js/data.js"></script>
+<script src="js/login-app.js"></script>
+</body>
+</html>

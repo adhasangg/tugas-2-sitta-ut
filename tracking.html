@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <title>Tracking Delivery Order - SITTA UT</title>
+</head>
+
+<body>
+    <div id="tracking-app">
+        <header>
+            <nav class="container">
+                <div class="logo">
+                    <a href="index.html">SITTA <span>UT</span></a>
+                </div>
+                <ul class="menu">
+                    <li class="menu-item"><a href="index.html">Home</a></li>
+                    <li class="menu-item"><a href="stok.html">Informasi Bahan Ajar</a></li>
+                    <li class="menu-item active"><a href="tracking.html">Tracking Pengiriman</a></li>
+                </ul>
+            </nav>
+        </header>
+
+        <main class="container">
+            <div class="page tracking-page">
+                <div class="page-header">
+                    <div>
+                        <h1>Tracking Delivery Order (DO)</h1>
+                        <p class="subtitle">Pantau status pengiriman bahan ajar Anda secara real-time atau buat DO baru.
+                        </p>
+                    </div>
+                    <button class="btn btn-primary" @click="openAddDoModal">
+                        <span class="icon">+</span> Buat DO Baru
+                    </button>
+                </div>
+
+                <div class="search-card">
+                    <h3>Cari Pengiriman</h3>
+                    <form @submit.prevent="performSearch" class="form-tracking-vue">
+                        <div class="search-input-group">
+                            <input type="text" v-model="searchDoNumber"
+                                placeholder="Masukkan Nomor DO (misal: DO2025-001)" required>
+                            <button type="submit" class="btn btn-primary search-btn">Cari</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="result-section" v-if="searchPerformed">
+                    <div class="tracking-card-vue" v-if="searchedDoResult">
+                        <div class="tracking-card-header">
+                            <h2>Detail Pengiriman</h2>
+                            <span class="badge badge-info">{{ searchedDoResult.status }}</span>
+                        </div>
+
+                        <div class="details-grid">
+                            <div class="detail-item">
+                                <span class="detail-label">Nomor DO</span>
+                                <span class="detail-value font-semibold">{{ searchedDoResult.nomorDO }}</span>
+                            </div>
+                            <div class="detail-item" v-if="searchedDoResult.nim">
+                                <span class="detail-label">NIM Mahasiswa</span>
+                                <span class="detail-value">{{ searchedDoResult.nim }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Nama Penerima</span>
+                                <span class="detail-value">{{ searchedDoResult.nama }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Ekspedisi</span>
+                                <span class="detail-value">{{ searchedDoResult.ekspedisi }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Tanggal Kirim</span>
+                                <span class="detail-value">{{ searchedDoResult.tanggalKirim }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Paket Bahan Ajar</span>
+                                <span class="detail-value">{{ searchedDoResult.paket }}</span>
+                            </div>
+                            <div class="detail-item">
+                                <span class="detail-label">Total Harga</span>
+                                <span class="detail-value font-semibold text-primary">
+                                    {{ typeof searchedDoResult.total === 'number' ? formatRupiah(searchedDoResult.total)
+                                    : searchedDoResult.total }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="timeline-section">
+                            <h4>Riwayat Perjalanan</h4>
+                            <div class="tracking-timeline-vue">
+                                <div class="timeline-item-vue" v-for="(item, index) in searchedDoResult.perjalanan"
+                                    v-bind:key="index">
+                                    <div class="timeline-dot"></div>
+                                    <div class="timeline-content">
+                                        <span class="timeline-time">{{ item.waktu }}</span>
+                                        <p class="timeline-desc">{{ item.keterangan }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tracking-error-card" v-else>
+                        <div class="error-icon">⚠️</div>
+                        <h3>Nomor Delivery Order Tidak Ditemukan</h3>
+                        <p>Silakan periksa kembali nomor DO yang Anda masukkan atau buat DO baru melalui tombol di kanan
+                            atas.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <div class="modal-overlay" v-if="showAddDoModal">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h2>Buat Delivery Order Baru</h2>
+                    <button class="close-btn" @click="showAddDoModal = false">×</button>
+                </div>
+                <div class="modal-body">
+                    <form @submit.prevent="submitDO" class="grid-form">
+                        <div class="input-group full-width">
+                            <label>Nomor DO (Otomatis)</label>
+                            <input type="text" v-bind:value="generatedDoNumber" disabled class="input-disabled">
+                            <span class="help-text">Nomor DO di-generate secara otomatis berdasarkan format tahun
+                                berjalan & sequence.</span>
+                        </div>
+
+                        <div class="input-group" v-bind:class="{'has-error': errors.nim}">
+                            <label for="form-nim">NIM Mahasiswa</label>
+                            <input type="text" id="form-nim" v-model="form.nim" placeholder="123456789">
+                            <span class="error-msg" v-if="errors.nim">{{ errors.nim }}</span>
+                        </div>
+
+                        <div class="input-group" v-bind:class="{'has-error': errors.nama}">
+                            <label for="form-nama">Nama Mahasiswa</label>
+                            <input type="text" id="form-nama" v-model="form.nama" placeholder="Rina Wulandari">
+                            <span class="error-msg" v-if="errors.nama">{{ errors.nama }}</span>
+                        </div>
+
+                        <div class="input-group" v-bind:class="{'has-error': errors.ekspedisi}">
+                            <label for="form-ekspedisi">Ekspedisi</label>
+                            <select id="form-ekspedisi" v-model="form.ekspedisi">
+                                <option value="JNE Regular">JNE Regular</option>
+                                <option value="JNE Express">JNE Express</option>
+                            </select>
+                            <span class="error-msg" v-if="errors.ekspedisi">{{ errors.ekspedisi }}</span>
+                        </div>
+
+                        <div class="input-group" v-bind:class="{'has-error': errors.paketKode}">
+                            <label for="form-paket">Paket Bahan Ajar</label>
+                            <select id="form-paket" v-model="form.paketKode">
+                                <option value="">-- Pilih Paket --</option>
+                                <option v-for="p in paketList" v-bind:key="p.kode" v-bind:value="p.kode">
+                                    {{ p.kode }} - {{ p.nama }}
+                                </option>
+                            </select>
+                            <span class="error-msg" v-if="errors.paketKode">{{ errors.paketKode }}</span>
+                        </div>
+
+                        <div class="info-box full-width" v-if="selectedPaketDetails">
+                            <h4>Isi Paket:</h4>
+                            <ul>
+                                <li v-for="matkul in selectedPaketDetails.isi" v-bind:key="matkul">
+                                    <code>{{ matkul }}</code>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="input-group" v-bind:class="{'has-error': errors.tanggalKirim}">
+                            <label for="form-tanggal">Tanggal Kirim</label>
+                            <input type="date" id="form-tanggal" v-model="form.tanggalKirim">
+                            <span class="error-msg" v-if="errors.tanggalKirim">{{ errors.tanggalKirim }}</span>
+                        </div>
+
+                        <div class="input-group">
+                            <label>Total Harga</label>
+                            <input type="text" v-bind:value="formatRupiah(formTotalHarga)" disabled
+                                class="input-disabled font-semibold">
+                        </div>
+
+                        <div class="form-actions full-width">
+                            <button type="button" class="btn btn-secondary"
+                                @click="showAddDoModal = false">Batal</button>
+                            <button type="submit" class="btn btn-primary">Buat DO</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" v-if="alertActive" style="z-index: 10001;">
+            <div class="modal-box alert-box" style="max-width: 400px; text-align: center; padding: 32px;">
+                <div class="alert-icon-wrapper" v-bind:class="'alert-icon-' + alertType">
+                    <span v-if="alertType === 'success'">✓</span>
+                    <span v-else-if="alertType === 'error'">✗</span>
+                    <span v-else-if="alertType === 'confirm'">?</span>
+                    <span v-else>!</span>
+                </div>
+                <h3 style="margin-top: 16px; font-size: 18px; font-weight: 700; color: #0f172a;">{{ alertTitle }}</h3>
+                <p style="margin-top: 8px; font-size: 14px; color: #64748b; line-height: 1.5;">{{ alertMessage }}</p>
+
+                <div class="alert-actions" style="margin-top: 24px; display: flex; justify-content: center; gap: 12px;">
+                    <button class="btn btn-secondary" v-if="alertType === 'confirm'"
+                        @click="closeAlert(false)">Batal</button>
+                    <button class="btn btn-primary" @click="closeAlert(true)">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+    <script src="js/dataBahanAjar.js"></script>
+    <script src="js/tracking-app.js"></script>
+</body>
+
+</html>
